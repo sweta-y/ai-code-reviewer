@@ -1,0 +1,23 @@
+{
+  "name": "ai-code-reviewer",
+  "version": "0.1.0",
+  "description": "AI-powered code reviewer using Gemini - reviews GitHub PRs for quality, security, and optimization issues",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "ai-review": "./src/index.js"
+  },
+  "scripts": {
+    "review": "node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.2",
+    "dotenv": "^16.4.5",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
