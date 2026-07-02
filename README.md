@@ -1,56 +1,245 @@
-# AI Code Reviewer
+\# 🤖 AI Code Reviewer
 
-Automatically reviews GitHub pull requests using Claude — flags security issues, bugs, code quality problems, and performance concerns.
 
-## Setup
+
+An AI-powered CLI tool that automatically reviews GitHub pull requests — flagging security issues, bugs, code quality problems, and performance concerns using Google's Gemini AI.
+
+
+
+\## ✨ Features
+
+
+
+\- 🔍 \*\*Automated PR Review\*\* — Fetches any GitHub PR diff and reviews it file-by-file
+
+\- 🛡️ \*\*Security Analysis\*\* — Catches injection risks, hardcoded secrets, unsafe deserialization, auth bugs
+
+\- 🐛 \*\*Bug Detection\*\* — Logic errors, null/undefined handling, race conditions
+
+\- ⚡ \*\*Performance Checks\*\* — Inefficient loops, N+1 query patterns
+
+\- 📝 \*\*Best Practice Suggestions\*\* — Idiomatic code recommendations
+
+\- 💬 \*\*GitHub Integration\*\* — Posts review summaries and inline comments directly on the PR
+
+\- 🎯 \*\*Severity Levels\*\* — Issues categorized as critical, warning, or suggestion
+
+\- ⏱️ \*\*Rate-Limit Aware\*\* — Built-in throttling to stay within free-tier API limits
+
+
+
+\## 🛠️ Tech Stack
+
+
+
+\- \*\*Node.js\*\* — Runtime
+
+\- \*\*Google Gemini API\*\* (`gemini-2.5-flash`) — AI code analysis
+
+\- \*\*GitHub REST API\*\* (via Octokit) — Fetching PR data \& posting comments
+
+\- \*\*Commander.js\*\* — CLI argument parsing
+
+\- \*\*Chalk\*\* — Terminal output styling
+
+
+
+\## 📸 Screenshots
+
+
+
+<!-- Add screenshots here -->
+
+<!-- !\[Terminal Output](screenshots/terminal-output.png) -->
+
+<!-- !\[Posted PR Comment](screenshots/pr-comment.png) -->
+
+
+
+\## 🚀 Getting Started
+
+
+
+\### Prerequisites
+
+
+
+\- \[Node.js](https://nodejs.org/) v18 or higher
+
+\- A free \[Google Gemini API key](https://aistudio.google.com/apikey)
+
+\- A \[GitHub Personal Access Token](https://github.com/settings/tokens) (scope: `public\_repo` or `repo`)
+
+
+
+\### Installation
+
+
 
 ```bash
+
+git clone https://github.com/sweta-y/ai-code-reviewer.git
+
+cd ai-code-reviewer
+
 npm install
+
+```
+
+
+
+\### Configuration
+
+
+
+Copy `.env.example` to `.env` and add your keys:
+
+
+
+```bash
+
 cp .env.example .env
+
 ```
 
-Fill in `.env`:
-- `ANTHROPIC_API_KEY` — from https://console.anthropic.com (API Keys section)
-- `GITHUB_TOKEN` — from https://github.com/settings/tokens (needs `repo` scope for private repos, `public_repo` for public)
 
-## Usage
 
-**Dry run (prints review to terminal, doesn't touch GitHub):**
+```env
+
+GEMINI\_API\_KEY=your\_gemini\_key\_here
+
+GITHUB\_TOKEN=your\_github\_token\_here
+
+```
+
+
+
+\### Usage
+
+
+
+\*\*Dry run\*\* (prints review to terminal only):
+
+
+
 ```bash
-npm run review -- https://github.com/owner/repo/pull/123
+
+node index.js https://github.com/owner/repo/pull/123
+
 ```
 
-**Post as a summary comment on the PR:**
+
+
+\*\*Post review as a comment on the PR:\*\*
+
+
+
 ```bash
-npm run review -- https://github.com/owner/repo/pull/123 --post
+
+node index.js https://github.com/owner/repo/pull/123 --post
+
 ```
 
-**Post summary + inline line-by-line comments:**
+
+
+\*\*Post inline comments too\*\* (requires `--post`):
+
+
+
 ```bash
-npm run review -- https://github.com/owner/repo/pull/123 --post --inline
+
+node index.js https://github.com/owner/repo/pull/123 --post --inline
+
 ```
 
-**Use a different model:**
+
+
+\*\*Use a different Gemini model:\*\*
+
+
+
 ```bash
-npm run review -- https://github.com/owner/repo/pull/123 -m claude-opus-4-8
+
+node index.js https://github.com/owner/repo/pull/123 -m gemini-2.5-pro
+
 ```
 
-## How it works
 
-1. `src/github.js` — fetches PR metadata and the diff (patch) for each changed file via the GitHub API
-2. `src/reviewer.js` — sends each file's diff to Claude with a structured prompt, gets back JSON-formatted findings (severity, category, line, message)
-3. `src/formatter.js` — turns the findings into terminal output and GitHub-flavored markdown
-4. `src/index.js` — CLI entry point (built with `commander`) that wires it all together
 
-## Roadmap (Phase 2)
+\## 📋 Example Output
 
-- [ ] GitHub App + webhook so reviews trigger automatically on every PR (instead of manual CLI run)
-- [ ] PostgreSQL to store review history, track issue trends per repo, avoid re-reviewing unchanged files
-- [ ] Express server to host the webhook receiver
-- [ ] Static analysis pass (ESLint/Semgrep) combined with Claude's review for higher signal
-- [ ] Configurable rules file (`.ai-review.yml`) per repo — ignore paths, severity thresholds, custom prompts
 
-## Notes
 
-- Large diffs: GitHub omits the `patch` field for very large file changes — those files are currently skipped. Chunking strategy for large diffs is a good next improvement.
-- Each file is reviewed independently (parallel API calls) to keep latency low and stay within context limits.
+```
+
+AI Code Review: Add user authentication middleware
+
+by contributor • feature/auth → main
+
+Overall Risk: MEDIUM
+
+Summary: This PR adds JWT-based auth middleware. Generally solid, but
+
+a few security and error-handling improvements are recommended.
+
+Found 3 issue(s) across 2 file(s):
+
+📄 src/middleware/auth.js
+
+🔴 L14 \[security] JWT secret is read without a fallback check —
+
+will throw an unclear error if the env var is missing.
+
+🟡 L22 \[bug] Token expiry isn't validated before decoding payload.
+
+
+
+```
+
+
+**## ⚙️ How It Works**
+
+
+
+**1. Fetches the PR's changed files and diff via the GitHub API**
+
+**2. Sends each file's diff to Gemini with a structured review prompt**
+
+**3. Parses the AI's response into categorized, line-level comments**
+
+**4. Generates an overall risk assessment and summary**
+
+**5. Optionally posts the review back to GitHub as PR comments**
+
+
+
+**## 🗺️ Roadmap**
+
+
+
+**- \[ ] GitHub webhook integration for automatic reviews on PR open/update**
+
+**- \[ ] Support for multiple AI providers (Claude, GPT-4)**
+
+**- \[ ] Configurable review rules per repository**
+
+**- \[ ] GitHub Action for CI/CD integration**
+
+
+
+**## 📄 License**
+
+
+
+**MIT**
+
+
+
+**## 👤 Author**
+
+
+
+**\*\*Sweta Yadav\*\***
+
+**\[GitHub](https://github.com/sweta-y)**
+
