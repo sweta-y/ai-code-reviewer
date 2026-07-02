@@ -5,9 +5,10 @@ import chalk from "chalk";
 import { GitHubClient, parsePrUrl } from "./github.js";
 import { Reviewer } from "./reviewer.js";
 import { printReview, buildSummaryMarkdown, buildInlineCommentMarkdown } from "./formatter.js";
+import { saveReview } from "./db.js";
+import { runStaticAnalysis } from "./staticAnalysis.js";
 
 const program = new Command();
-
 program
   .name("ai-review")
   .description("AI-powered code reviewer for GitHub pull requests, using Gemini")
@@ -16,7 +17,6 @@ program
   .option("--inline", "post individual inline comments too (requires --post)")
   .option("-m, --model <model>", "Gemini model to use", process.env.GEMINI_MODEL || "gemini-2.5-flash")
   .action(main);
-
 program.parse();
 
 async function main(prUrl, options) {
@@ -26,25 +26,38 @@ async function main(prUrl, options) {
     const reviewer = new Reviewer({ apiKey: process.env.GEMINI_API_KEY, model: options.model });
 
     console.log(chalk.dim(`Fetching PR #${target.pull_number} from ${target.owner}/${target.repo}...`));
-
     const [prInfo, files] = await Promise.all([
       github.getPrInfo(target),
       github.getPrFiles(target),
     ]);
 
     console.log(chalk.dim(`Reviewing ${files.length} changed file(s) with ${options.model}...`));
-
     const results = [];
-for (const f of files) {
-  const result = await reviewer.reviewFile({
-    filename: f.filename,
-    patch: f.patch,
-    prTitle: prInfo.title,
-    prBody: prInfo.body,
-  });
-  results.push(result);
-  await new Promise((resolve) => setTimeout(resolve, 13000)); // 13 sec gap, free tier ke 5 req/min limit ke andar rehne ke liye
-}
+    for (const f of files) {
+      const result = await reviewer.reviewFile({
+        filename: f.filename,
+        patch: f.patch,
+        prTitle: prInfo.title,
+        prBody: prInfo.body,
+      });
+
+      // Run static analysis (ESLint) on the full file content
+      const content = await github.getFileContent(target, f.filename, prInfo.headBranch);
+      const staticIssues = content ? await runStaticAnalysis(f.filename, content) : [];
+
+      if (staticIssues.length > 0) {
+        if (result) {
+          result.comments = [...(result.comments || []), ...staticIssues];
+        } else {
+          results.push({ filename: f.filename, comments: staticIssues });
+          await new Promise((resolve) => setTimeout(resolve, 13000));
+          continue;
+        }
+      }
+
+      results.push(result);
+      await new Promise((resolve) => setTimeout(resolve, 13000)); // 13 sec gap, free tier ke 5 req/min limit ke andar rehne ke liye
+    }
 
     const fileResults = results.filter(Boolean); // drop nulls (no issues / no patch)
 
@@ -55,6 +68,14 @@ for (const f of files) {
     });
 
     printReview({ prInfo, summary, fileResults });
+
+    await saveReview({
+      repoName: `${target.owner}/${target.repo}`,
+      prNumber: target.pull_number,
+      prTitle: prInfo.title,
+      overallRisk: summary.overall_risk,
+      fileResults,
+    });
 
     if (options.post) {
       console.log(chalk.dim("\nPosting review to GitHub..."));

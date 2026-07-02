@@ -46,7 +46,6 @@ export class GitHubClient {
       pull_number,
       per_page: 100,
     });
-
     return files.map((f) => ({
       filename: f.filename,
       status: f.status, // added, modified, removed, renamed
@@ -84,5 +83,19 @@ export class GitHubClient {
   async getHeadSha({ owner, repo, pull_number }) {
     const { data } = await this.octokit.pulls.get({ owner, repo, pull_number });
     return data.head.sha;
+  }
+
+  /** Fetch the full content of a file at the PR's head commit */
+  async getFileContent({ owner, repo }, path, ref) {
+    try {
+      const { data } = await this.octokit.repos.getContent({ owner, repo, path, ref });
+      if (data.encoding === "base64") {
+        return Buffer.from(data.content, "base64").toString("utf-8");
+      }
+      return null;
+    } catch (err) {
+      console.error(`⚠️ Could not fetch content for ${path}: ${err.message}`);
+      return null;
+    }
   }
 }
